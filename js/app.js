@@ -1,6 +1,6 @@
 /**
  * MONITOR - PONTE MÓVEL MATOSINHOS
- * Versão Estabilizada - CGIU (Proxy Fix)
+ * Versão Estabilizada - CGIU (CodeTabs Proxy Fix)
  */
 
 // 1. INICIALIZAÇÃO IMEDIATA DO RELÓGIO
@@ -17,7 +17,7 @@ const iniciarRelogio = () => {
 };
 iniciarRelogio();
 
-// 2. IMPORTAÇÕES
+// 2. IMPORTAÇÕES (Garante que o firebase.js está na mesma pasta)
 import { db, collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from './firebase.js';
 
 const textoEstado = document.getElementById('texto-estado');
@@ -41,7 +41,7 @@ onSnapshot(q, (snapshot) => {
         const estado = doc.data().estado;
         ultimoEstado = estado;
 
-        // Reset Visual
+        // Reset Visual das luzes
         Object.values(luzes).forEach(l => l?.classList.remove('red-active', 'yellow-active', 'green-active'));
 
         if (estado === "ABERTA") {
@@ -57,22 +57,23 @@ onSnapshot(q, (snapshot) => {
     });
 }, (err) => console.error("Erro Firebase:", err));
 
-// 4. VERIFICAÇÃO APDL (Com novo Proxy para evitar CORS)
+// 4. VERIFICAÇÃO APDL (Com Proxy CodeTabs para evitar bloqueios)
 async function verificarAPDL() {
     if (!dbPronta) return;
 
     try {
-        // Novo Proxy: corsproxy.io é mais estável para este tipo de pedidos
+        // Alvo: Site oficial da APDL
         const targetUrl = 'https://siga.apdl.pt/AberturaPonteMovel/?t=' + Date.now();
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        // Proxy: CodeTabs (mais estável para evitar erros de Connection Reset)
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
         
         const res = await fetch(proxyUrl);
         if (!res.ok) throw new Error("Proxy instável");
 
-        // O corsproxy.io devolve o HTML diretamente como texto
         const html = (await res.text()).toLowerCase();
         let detectado = "DESCONHECIDO";
 
+        // Regex para deteção do estado no HTML
         const regexFechada = /tr[aâ]nsito\s+livre|em\s+tr[aâ]nsito/i;
         const regexAberta = /interrompido|manobra|ponte\s+aberta/i;
         const regexPreparacao = /prepara[çc][ãa]o/i;
@@ -85,6 +86,7 @@ async function verificarAPDL() {
             detectado = "EM PREPARAÇÃO";
         }
 
+        // Se o estado mudou, grava no Firestore
         if (detectado !== "DESCONHECIDO" && detectado !== ultimoEstado) {
             await addDoc(collection(db, "registos_ponte"), {
                 estado: detectado,
@@ -93,9 +95,10 @@ async function verificarAPDL() {
             });
         }
     } catch (e) {
-        console.warn("APDL inacessível temporariamente...");
+        // Aviso silencioso na consola em caso de falha de rede ou proxy
+        console.warn("Sincronização APDL: Tentando novamente no próximo ciclo...");
     }
 }
 
-// 20 segundos para evitar bloqueios de IP e respeitar limites do proxy
+// Intervalo de 20 segundos para monitorização contínua
 setInterval(verificarAPDL, 20000);
