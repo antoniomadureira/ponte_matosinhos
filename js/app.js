@@ -1,9 +1,9 @@
 /**
  * MONITOR - PONTE MÓVEL MATOSINHOS
- * Versão Estabilizada - CGIU
+ * Versão Estabilizada - CGIU (Proxy Fix)
  */
 
-// 1. INICIALIZAÇÃO IMEDIATA DO RELÓGIO (Não depende de nada)
+// 1. INICIALIZAÇÃO IMEDIATA DO RELÓGIO
 const iniciarRelogio = () => {
     const display = document.getElementById('timestamp-atual');
     const tick = () => {
@@ -17,7 +17,7 @@ const iniciarRelogio = () => {
 };
 iniciarRelogio();
 
-// 2. IMPORTAÇÕES (Pode falhar se o firebase.js estiver incorreto)
+// 2. IMPORTAÇÕES
 import { db, collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from './firebase.js';
 
 const textoEstado = document.getElementById('texto-estado');
@@ -57,25 +57,22 @@ onSnapshot(q, (snapshot) => {
     });
 }, (err) => console.error("Erro Firebase:", err));
 
-// 4. VERIFICAÇÃO APDL (Com tratamento de erro CORS/500)
+// 4. VERIFICAÇÃO APDL (Com novo Proxy para evitar CORS)
 async function verificarAPDL() {
     if (!dbPronta) return;
 
     try {
-        // Usamos um timestamp para evitar caches do proxy que causam o erro 500
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://siga.apdl.pt/AberturaPonteMovel/?t=' + Date.now())}`;
+        // Novo Proxy: corsproxy.io é mais estável para este tipo de pedidos
+        const targetUrl = 'https://siga.apdl.pt/AberturaPonteMovel/?t=' + Date.now();
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         
         const res = await fetch(proxyUrl);
         if (!res.ok) throw new Error("Proxy instável");
 
-        const data = await res.json();
-        const html = data.contents.toLowerCase();
+        // O corsproxy.io devolve o HTML diretamente como texto
+        const html = (await res.text()).toLowerCase();
         let detectado = "DESCONHECIDO";
 
-        /**
-         * SUGESTÃO 1: DETEÇÃO ROBUSTA COM REGEX
-         * Suporta variações de acentos, maiúsculas/minúsculas e frases comuns.
-         */
         const regexFechada = /tr[aâ]nsito\s+livre|em\s+tr[aâ]nsito/i;
         const regexAberta = /interrompido|manobra|ponte\s+aberta/i;
         const regexPreparacao = /prepara[çc][ãa]o/i;
@@ -96,9 +93,9 @@ async function verificarAPDL() {
             });
         }
     } catch (e) {
-        // Silencioso para não poluir a consola, o relógio continua a contar
         console.warn("APDL inacessível temporariamente...");
     }
 }
 
-setInterval(verificarAPDL, 20000); // 20 segundos para evitar bloqueios de IP
+// 20 segundos para evitar bloqueios de IP e respeitar limites do proxy
+setInterval(verificarAPDL, 20000);
