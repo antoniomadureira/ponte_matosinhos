@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Monitorização Semáforo da Ponte (V2 - Firebase Edition)
 
 Este projeto monitoriza e regista os estados operacionais da ponte (Aberta, Em Preparação, Fechada) utilizando uma arquitetura Serverless com Firebase.
@@ -23,3 +24,6 @@ Este projeto monitoriza e regista os estados operacionais da ponte (Aberta, Em P
        }
      }
    }
+=======
+# ponte_matosinhos
+>>>>>>> 3dd6bfe71043d04d47a9ea6410fee69776e36853
